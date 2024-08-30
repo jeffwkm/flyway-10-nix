@@ -1,7 +1,8 @@
-{ lib, stdenv, fetchurl, jre_headless, makeWrapper, testers }:
+{ lib, stdenv, fetchurl, jre_headless, makeWrapper, testers, libGlob ? "*"
+, driversGlob ? "*", suffix ? null }:
 
 stdenv.mkDerivation (finalAttrs: {
-  pname = "flyway";
+  pname = (if isNull suffix then "flyway" else "flyway-${suffix}");
   version = "10.17.2";
   src = fetchurl {
     url =
@@ -12,15 +13,18 @@ stdenv.mkDerivation (finalAttrs: {
   dontBuild = true;
   dontStrip = true;
   installPhase = ''
-    mkdir -p $out/bin $out/share/flyway
-    cp -r lib conf drivers licenses README.txt $out/share/flyway
-    mkdir -p $out/share/flyway/jars
     lib="$out/share/flyway/lib"
+    drivers="$out/share/flyway/drivers"
+
+    mkdir -p $out/bin $lib $drivers
+
+    cp -r lib/${libGlob} $lib
+    cp -r drivers/${driversGlob} $drivers
+
     makeWrapper "${jre_headless}/bin/java" $out/bin/flyway \
       --add-flags "-Djava.security.egd=file:/dev/../dev/urandom" \
-      --add-flags "-classpath '$lib/*:$lib/aad/*:$lib/plugins/*:$lib/oracle_wallet/*:$lib/flyway/*:$lib/drivers/*:$lib/drivers/gcp/*:$lib/drivers/cassandra/*'" \
-      --add-flags "org.flywaydb.commandline.Main" \
-      --add-flags "-jarDirs='$out/share/flyway/jars'"
+      --add-flags "-classpath '$lib/*:$lib/aad/*:$lib/flyway/*:$lib/oracle_wallet/*:$drivers/*:$drivers/gcp/*:$drivers/cassandra/*'" \
+      --add-flags "org.flywaydb.commandline.Main"
   '';
   passthru.tests = {
     version = testers.testVersion { package = finalAttrs.finalPackage; };

@@ -10,9 +10,17 @@
 
   outputs = _inputs@{ nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = import nixpkgs { inherit system; };
+      let
+        pkgs = import nixpkgs { inherit system; };
+        flyway = (args: pkgs.callPackage ./flyway.nix args);
       in rec {
-        packages = { flyway = pkgs.callPackage ./flyway.nix { }; };
-        overlays = { default = (final: prev: { flyway = packages.flyway; }); };
+        packages = {
+          flyway = flyway { };
+          flyway-postgres = flyway {
+            suffix = "postgres";
+            driversGlob = "postgres*";
+          };
+        };
+        overlays = { default = (final: prev: packages); };
       });
 }
